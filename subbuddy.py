@@ -119,7 +119,7 @@ def push_subscribed_to():
 				username_to_subscribe_to=local_sub)
 		
 def skip_current_queue():
-	ids = get_video_feed(new_subscription_videos_uri)
+	ids = get_video_feed()
 	downloaded = [line.strip() for line in open(dldb)]
 	
 	for video_id in ids:
@@ -129,7 +129,7 @@ def skip_current_queue():
 			f.close()
 
 def check_and_download_subscriptions():
-	ids = get_video_feed(new_subscription_videos_uri)
+	ids = get_video_feed()
 	downloaded = [line.strip() for line in open(dldb)]
 	
 	for video_id in ids:
@@ -148,12 +148,12 @@ def login():
 	yt_service.password = user_password
 	yt_service.ProgrammaticLogin()
 	
-def get_video_feed(uri):
+def get_video_feed():
 	ids = []
-	feed = yt_service.GetYouTubeVideoFeed(uri)
+	feed = yt_service.GetYouTubeVideoFeed(new_subscription_videos_uri)
 	for entry in feed.entry:
-		gdata_vido_url = entry.id.text
-		video_id = entry.id.text[gdata_vido_url.rfind('/') + 1:]
+		gdata_video_url = entry.id.text
+		video_id = entry.id.text[gdata_video_url.rfind('/') + 1:]
 		ids.append(video_id)
 		
 	return ids

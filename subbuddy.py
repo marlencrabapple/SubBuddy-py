@@ -4,11 +4,9 @@ import os
 import sys
 import glob
 import time
-import signal
 import argparse
 import sbconfig
 import httplib2
-import threading
 import subprocess
 import gdata.youtube
 import gdata.youtube.service
@@ -65,7 +63,7 @@ def main():
 		check_files()
 		check_and_download_subscriptions()
 		
-		if args.run_once
+		if args.run_once:
 			print 'Goodbye.'
 			sys.exit(0)
 		
@@ -121,7 +119,7 @@ def push_subscribed_to():
 				username_to_subscribe_to=local_sub)
 		
 def skip_current_queue():
-	ids = get_feed(new_subscription_videos_uri)
+	ids = get_video_feed(new_subscription_videos_uri)
 	downloaded = [line.strip() for line in open(dldb)]
 	
 	for video_id in ids:
@@ -131,7 +129,7 @@ def skip_current_queue():
 			f.close()
 
 def check_and_download_subscriptions():
-	ids = get_feed(new_subscription_videos_uri)
+	ids = get_video_feed(new_subscription_videos_uri)
 	downloaded = [line.strip() for line in open(dldb)]
 	
 	for video_id in ids:
@@ -150,7 +148,7 @@ def login():
 	yt_service.password = user_password
 	yt_service.ProgrammaticLogin()
 	
-def get_feed(uri):
+def get_video_feed(uri):
 	ids = []
 	feed = yt_service.GetYouTubeVideoFeed(uri)
 	for entry in feed.entry:

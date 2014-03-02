@@ -35,6 +35,7 @@ def main():
 	parser.add_argument('-g', '--pull-subscriptions', action='store_true')
 	parser.add_argument('-p', '--push-subscriptions', action='store_true')
 	parser.add_argument('-I', '--run-once', action='store_true')
+	parser.add_argument('-d', '--dont-download', action='store_true')
 	args = parser.parse_args()
 	login()
 	check_files()
@@ -46,23 +47,28 @@ def main():
 	
 	if args.pull_subscriptions:
 		print 'Grabbing remote subscriptions.'
-		pull_subscribed_to();
+		pull_subscribed_to()
 	
 	if args.push_subscriptions:
 		print 'Adding local subscriptions.'
-		push_subscribed_to();
+		push_subscribed_to()
 	
 	if args.skip_current_queue:
 		print 'Skipping current subscription queue.'
-		skip_current_queue();
+		skip_current_queue()
 		
-	if args.run_once:
+	if args.dont_download:
 		print 'Goodbye.'
 		sys.exit(0)
 	
 	while True:
 		check_files()
 		check_and_download_subscriptions()
+		
+		if args.run_once
+			print 'Goodbye.'
+			sys.exit(0)
+		
 		print 'Waiting', refresh_rate, 'seconds...';
 		time.sleep(refresh_rate)
 		

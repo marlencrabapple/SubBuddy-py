@@ -4,6 +4,8 @@ import os
 import sys
 import glob
 import time
+import json
+import urllib
 import argparse
 import sbconfig
 import httplib2
@@ -17,6 +19,8 @@ dev_key = sbconfig.dev_key
 refresh_rate = sbconfig.refresh_rate
 max_simultaneous_dls = sbconfig.max_simultaneous_dls
 queue_size = sbconfig.queue_size
+download_dash = sbconfig.download_dash
+use_custom_ffmpeg = sbconfig.use_custom_ffmpeg
 
 yt_service = gdata.youtube.service.YouTubeService()
 yt_service.ssl = True
@@ -131,18 +135,87 @@ def skip_current_queue():
 def check_and_download_subscriptions():
 	ids = get_video_feed()
 	downloaded = [line.strip() for line in open(dldb)]
+	d_v = ['264','137','136','135','133']
+	d_a = ['141','140','139']
+	v = ['22','18','5']
+	ordered_v = ['264','137','22','136','135','18','133','5']
 	
 	for video_id in ids:
 		if video_id not in in_progress and len(in_progress) < max_simultaneous_dls:
-			# youtube-dl will scrape the page before deciding whether or not to download the file
 			if video_id not in downloaded:
+				chosen_v = ''
+				chosen_a = ''
+				ext = ''
+				needs_a = 0
 				in_progress.append(video_id)
-				subprocess.call(['youtube-dl', '-o %(uploader)s - %(title)s - %(id)s.%(ext)s', '--restrict-filenames', video_id])
+				ytdl = subprocess.Popen(['youtube-dl', '-j', video_id], stdout=subprocess.PIPE)
+				out, err = ytdl.communicate()
+				video_info = json.loads(out);
+				
+				for preferred in ordered_v:
+					if len(chosen_v) > 0:
+							break
+					for available in video_info['formats']:
+						if available['format_id'] == preferred:
+							if preferred in d_v:
+								if download_dash == 1:
+									needs_a = 1
+									chosen_v = available['url']
+									ext = available['ext']
+								else:
+									break;
+							else:
+								chosen_v = available['url']
+								ext = available['ext']
+							break				
+				
+				if needs_a == 1:
+					for preferred in d_a:
+						if len(chosen_a) > 0:
+							break
+						for available in video_info['formats']:
+							if available['format_id'] == preferred:
+								chosen_a = available['url']
+								break
+							
+				filename = "{} - {} - {}".format(video_info['uploader'], video_info['stitle'], video_info['id'])
+				for c in r'[]/\;,><&*:%=+@!#^()|?^':
+					filename = filename.replace(c,'')
+				
+				download_video(chosen_v, chosen_a, filename, ext)
+				
 				f = open(dldb,'a')
 				f.write(video_id + '\n')
 				f.close()
 				in_progress.remove(video_id)
-	
+				
+def download_video(v_url, a_url, filename, ext):
+	if len(a_url) > 0:
+		print "Downloading {}".format(filename + '.mp4')
+		if not os.path.exists(filename + '.m4v'):
+			file(filename + '.m4v', 'w').close()
+		urllib.urlretrieve(v_url, filename + '.m4v')
+		
+		if not os.path.exists(filename + '.m4a'):
+			file(filename + '.m4a', 'w').close()	
+		urllib.urlretrieve (a_url, filename + '.m4a')
+		
+		if use_custom_ffmpeg == 1:
+			ffmpegarg = os.path.abspath('ffmpeg')
+		else:
+			ffmpegarg = 'ffmpeg'
+		
+		ffmpeg = subprocess.Popen([ffmpegarg, '-loglevel', 'quiet', '-i', filename + '.m4v' , '-i', filename + '.m4a', '-vcodec', 'copy', '-acodec', 'copy', filename + '.mp4'], stdout=subprocess.PIPE)
+		out, err = ffmpeg.communicate()
+		
+		os.remove(filename + '.m4v');
+		os.remove(filename + '.m4a');
+	else:
+		print "Downloading {}".format(filename + '.' + ext)
+		if not os.path.exists(filename + '.' + ext):
+			file(filename + '.' + ext, 'w').close()
+		urllib.urlretrieve(v_url, filename + '.' + ext)
+		
 def login():
 	yt_service.email = user_email
 	yt_service.password = user_password

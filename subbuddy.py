@@ -37,15 +37,25 @@ def main():
 	parser.add_argument('-g', '--pull-subscriptions', action='store_true')
 	parser.add_argument('-p', '--push-subscriptions', action='store_true')
 	parser.add_argument('-I', '--run-once', action='store_true')
-	parser.add_argument('-d', '--dont-download', action='store_true')
+	parser.add_argument('-c', '--dont-check-subscriptions', action='store_true')
+	parser.add_argument('-d', '--download-this')
+	parser.add_argument('-z', '--dont-login', action='store_true')
 	args = parser.parse_args()
-	login()
+	
+	if not args.dont_login:
+		login()
+		
 	check_files()
 	
 	if queue_size != 25:
 		if queue_size <= 50 or queue_size >= 1:
 			global new_subscription_videos_uri
 			new_subscription_videos_uri += '?max-results=' + str(queue_size)
+			
+	if args.download_this:
+		print "Single video mode."
+		chosen_v, chosen_a, filename, ext = get_video_info(args.download_this)
+		download_video(chosen_v, chosen_a, filename, ext)
 	
 	if args.pull_subscriptions:
 		print 'Grabbing remote subscriptions.'
@@ -59,7 +69,7 @@ def main():
 		print 'Skipping current subscription queue.'
 		skip_current_queue()
 		
-	if args.dont_download:
+	if args.dont_check_subscriptions:
 		print 'Goodbye.'
 		sys.exit(0)
 	
@@ -135,60 +145,65 @@ def skip_current_queue():
 def check_and_download_subscriptions():
 	ids = get_video_feed()
 	downloaded = [line.strip() for line in open(dldb)]
-	d_v = ['264','137','136','135','133']
-	d_a = ['141','140','139']
-	v = ['22','18','5']
-	ordered_v = ['264','137','22','136','135','18','133','5']
 	
 	for video_id in ids:
 		if video_id not in in_progress and len(in_progress) < max_simultaneous_dls:
 			if video_id not in downloaded:
-				chosen_v = ''
-				chosen_a = ''
-				ext = ''
-				needs_a = 0
-				in_progress.append(video_id)
-				ytdl = subprocess.Popen(['youtube-dl', '-j', video_id], stdout=subprocess.PIPE)
-				out, err = ytdl.communicate()
-				video_info = json.loads(out);
-				
-				for preferred in ordered_v:
-					if len(chosen_v) > 0:
-							break
-					for available in video_info['formats']:
-						if available['format_id'] == preferred:
-							if preferred in d_v:
-								if download_dash == 1:
-									needs_a = 1
-									chosen_v = available['url']
-									ext = available['ext']
-								else:
-									break;
-							else:
-								chosen_v = available['url']
-								ext = available['ext']
-							break				
-				
-				if needs_a == 1:
-					for preferred in d_a:
-						if len(chosen_a) > 0:
-							break
-						for available in video_info['formats']:
-							if available['format_id'] == preferred:
-								chosen_a = available['url']
-								break
-							
-				filename = "{} - {} - {}".format(video_info['uploader'], video_info['stitle'], video_info['id'])
-				for c in r'[]/\;,><&*:%=+@!#^()|?^':
-					filename = filename.replace(c,'')
-				
+				print "Retrieving video info..."
+				chosen_v, chosen_a, filename, ext = get_video_info(video_id)
 				download_video(chosen_v, chosen_a, filename, ext)
 				
 				f = open(dldb,'a')
 				f.write(video_id + '\n')
 				f.close()
 				in_progress.remove(video_id)
+
+def get_video_info(video_id):
+	d_v = ['264','137','136','135','133']
+	d_a = ['141','140','139']
+	v = ['22','18','5']
+	ordered_v = ['264','137','22','136','135','18','133','5']
+	chosen_v = ''
+	chosen_a = ''
+	ext = ''
+	needs_a = 0
+	in_progress.append(video_id)
+	ytdl = subprocess.Popen(['youtube-dl', '-j', '--username', user_email, '--password', user_password, video_id], stdout=subprocess.PIPE)
+	out, err = ytdl.communicate()
+	video_info = json.loads(out);
+	
+	for preferred in ordered_v:
+		if len(chosen_v) > 0:
+				break
+		for available in video_info['formats']:
+			if available['format_id'] == preferred:
+				if preferred in d_v:
+					if download_dash == 1:
+						needs_a = 1
+						chosen_v = available['url']
+						ext = available['ext']
+					else:
+						break;
+				else:
+					chosen_v = available['url']
+					ext = available['ext']
+				break				
+	
+	if needs_a == 1:
+		for preferred in d_a:
+			if len(chosen_a) > 0:
+				break
+			for available in video_info['formats']:
+				if available['format_id'] == preferred:
+					chosen_a = available['url']
+					break
 				
+	filename = "{} - {} - {}".format(video_info['uploader'], video_info['stitle'], video_info['id'])
+	for c in r'[]/\;,><&*:%=+@!#^()|?^':
+		filename = filename.replace(c,'')
+	
+	return chosen_v, chosen_a, filename, ext
+
 def download_video(v_url, a_url, filename, ext):
 	if len(a_url) > 0:
 		print "Downloading {}".format(filename + '.mp4')
@@ -211,17 +226,19 @@ def download_video(v_url, a_url, filename, ext):
 		os.remove(filename + '.m4v');
 		os.remove(filename + '.m4a');
 	else:
-		print "Downloading {}".format(filename + '.' + ext)
+		print "Downloading '{}.{}'".format(filename, ext)
 		if not os.path.exists(filename + '.' + ext):
 			file(filename + '.' + ext, 'w').close()
 		urllib.urlretrieve(v_url, filename + '.' + ext)
 		
 def login():
+	print "Logging in to YouTube"
 	yt_service.email = user_email
 	yt_service.password = user_password
 	yt_service.ProgrammaticLogin()
 	
 def get_video_feed():
+	print "Retrieving subscription feed"
 	ids = []
 	feed = yt_service.GetYouTubeVideoFeed(new_subscription_videos_uri)
 	for entry in feed.entry:

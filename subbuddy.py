@@ -5,6 +5,7 @@ import sys
 import glob
 import time
 import json
+import codecs
 import urllib
 import argparse
 import sbconfig
@@ -197,8 +198,8 @@ def get_video_info(video_id):
 				if available['format_id'] == preferred:
 					chosen_a = available['url']
 					break
-				
-	filename = "{} - {} - {}".format(video_info['uploader'], video_info['stitle'], video_info['id'])
+					
+	filename = u"{} - {} - {}".format(video_info['uploader'], video_info['title'], video_info['id'])
 	for c in r'[]/\;,><&*:%=+@!#^()|?^':
 		filename = filename.replace(c,'')
 	
@@ -206,7 +207,7 @@ def get_video_info(video_id):
 
 def download_video(v_url, a_url, filename, ext):
 	if len(a_url) > 0:
-		print "Downloading {}".format(filename + '.mp4')
+		print u"Downloading {}".format(filename + '.mp4')
 		if not os.path.exists(filename + '.m4v'):
 			file(filename + '.m4v', 'w').close()
 		urllib.urlretrieve(v_url, filename + '.m4v')
@@ -226,7 +227,7 @@ def download_video(v_url, a_url, filename, ext):
 		os.remove(filename + '.m4v');
 		os.remove(filename + '.m4a');
 	else:
-		print "Downloading '{}.{}'".format(filename, ext)
+		print u"Downloading '{}.{}'".format(filename, ext)
 		if not os.path.exists(filename + '.' + ext):
 			file(filename + '.' + ext, 'w').close()
 		urllib.urlretrieve(v_url, filename + '.' + ext)

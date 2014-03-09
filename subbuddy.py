@@ -169,9 +169,9 @@ def get_video_info(video_id):
 	ext = ''
 	needs_a = 0
 	in_progress.append(video_id)
-	ytdl = subprocess.Popen(['youtube-dl', '-j', '--username', user_email, '--password', user_password, video_id], stdout=subprocess.PIPE)
+	ytdl = subprocess.Popen(['youtube-dl', '-j', '--username', user_email, '--password', user_password, "https://www.youtube.com/watch?v={}".format(video_id)], stdout=subprocess.PIPE)
 	out, err = ytdl.communicate()
-	video_info = json.loads(out);
+	video_info = json.loads(out)
 	
 	for preferred in ordered_v:
 		if len(chosen_v) > 0:

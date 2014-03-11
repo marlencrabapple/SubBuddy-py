@@ -55,7 +55,7 @@ def main():
 			
 	if args.download_this:
 		print "Single video mode."
-		chosen_v, chosen_a, filename, ext = get_video_info(args.download_this)
+		chosen_v, chosen_a, filename, ext = get_video_info(parse_id(args.download_this))
 		download_video(chosen_v, chosen_a, filename, ext)
 	
 	if args.pull_subscriptions:
@@ -158,6 +158,9 @@ def check_and_download_subscriptions():
 				f.write(video_id + '\n')
 				f.close()
 				in_progress.remove(video_id)
+				
+def parse_id(url):
+	return url[url.rfind('=') + 1:]
 
 def get_video_info(video_id):
 	d_v = ['264','137','136','135','133']

@@ -56,8 +56,8 @@ def main():
 
   if args.download_this:
     print "Single video mode."
-    chosen_v, chosen_a, filename, ext = get_video_info(parse_id(args.download_this))
-    download_video(chosen_v, chosen_a, filename, ext)
+    chosen_v, chosen_a, filename, ext, username = get_video_info(parse_id(args.download_this))
+    download_video(chosen_v, chosen_a, filename, ext, username)
 
   if args.pull_subscriptions:
     print 'Grabbing remote subscriptions.'

@@ -155,7 +155,9 @@ def check_and_download_subscriptions():
   downloaded = [line.strip() for line in open(dldb)]
 
   for video_id in ids:
-    if video_id not in in_progress and len(in_progress) < max_simultaneous_dls:
+    # tbd : async downloads
+    #if video_id not in in_progress and len(in_progress) < max_simultaneous_dls:
+    if video_id not in in_progress:
       if video_id not in downloaded:
         print "Retrieving video info..."
         chosen_v, chosen_a, filename, ext, username = get_video_info(video_id)

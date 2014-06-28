@@ -26,6 +26,7 @@ queue_size = sbconfig.queue_size
 download_dash = sbconfig.download_dash
 use_custom_ffmpeg = sbconfig.use_custom_ffmpeg
 username_folders = sbconfig.username_folders
+debug_mode = sbconfig.debug_mode
 
 yt_service = gdata.youtube.service.YouTubeService()
 yt_service.ssl = True
@@ -80,14 +81,15 @@ def main():
 
   while True:
     check_files()
-    check_and_download_subscriptions()
+    do_sleep = check_and_download_subscriptions()
 
     if args.run_once:
       print 'Goodbye.'
       sys.exit(0)
 
-    print 'Waiting', refresh_rate, 'seconds...'
-    time.sleep(refresh_rate)
+    if do_sleep != 1006:
+      print 'Waiting', refresh_rate, 'seconds...'
+      time.sleep(refresh_rate)
 
 def check_files():
   if not os.path.exists(dldb):
@@ -95,6 +97,11 @@ def check_files():
 
   if not os.path.exists(subdb):
     file(subdb, 'w').close()
+
+def log_download(video_id):
+  f = open(dldb, 'a')
+  f.write(video_id + '\n')
+  f.close()
 
 def pull_subscribed_to():
   subscription_feed = yt_service.GetYouTubeSubscriptionFeed(
@@ -149,11 +156,12 @@ def skip_current_queue():
 
   for video_id in ids:
     if video_id not in downloaded:
-      f = open(dldb,'a')
-      f.write(video_id + '\n')
-      f.close()
+      log_download(video_id)
 
 def check_and_download_subscriptions(ids = False):
+  if debug_mode == 1 and download_async == 1:
+    pprint.pprint(in_progress.keys())
+
   if not ids:
     ids = get_video_feed()
 
@@ -170,9 +178,7 @@ def check_and_download_subscriptions(ids = False):
 
         if download_async == 0:
           download_video(chosen_v, chosen_a, filename, ext, username)
-          f = open(dldb, 'a')
-          f.write(video_id + '\n')
-          f.close()
+          log_download(video_id)
         else:
           in_progress[video_id] = threading.Thread(target=download_video,
             args=(chosen_v, chosen_a, filename, ext, username))
@@ -183,15 +189,13 @@ def check_and_download_subscriptions(ids = False):
       for k, v in in_progress.iteritems():
         if not v.is_alive():
           tbr.append(k)
-          f = open(dldb, 'a')
-          f.write(k + '\n')
-          f.close()
+          log_download(k)
 
       for key in tbr:
         del in_progress[key]
 
       time.sleep(5)
-      check_and_download_subscriptions(ids)
+      return 1006
 
 def parse_id(url):
   return url[url.rfind('=') + 1:]
@@ -230,7 +234,7 @@ def get_video_info(video_id, login = True):
 
   for preferred in ordered_v:
     if len(chosen_v) > 0:
-        break
+      break
     for available in video_info['formats']:
       if available['format_id'] == preferred:
         if preferred in d_v:

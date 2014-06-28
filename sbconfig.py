@@ -10,3 +10,4 @@ queue_size = 25
 download_dash = 0
 use_custom_ffmpeg = 0
 username_folders = 1
+debug_mode = 0

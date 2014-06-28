@@ -49,6 +49,7 @@ def main():
   args = parser.parse_args()
 
   if not args.dont_login:
+    print "Logging in to YouTube"
     login()
 
   check_files()
@@ -79,15 +80,18 @@ def main():
     print 'Goodbye.'
     sys.exit(0)
 
+  # main loop
+  ids = []
+
   while True:
     check_files()
-    do_sleep = check_and_download_subscriptions()
+    ids = check_and_download_subscriptions(ids)
 
     if args.run_once:
       print 'Goodbye.'
       sys.exit(0)
 
-    if do_sleep != 1006:
+    if not ids:
       print 'Waiting', refresh_rate, 'seconds...'
       time.sleep(refresh_rate)
 
@@ -158,11 +162,12 @@ def skip_current_queue():
     if video_id not in downloaded:
       log_download(video_id)
 
-def check_and_download_subscriptions(ids = False):
+def check_and_download_subscriptions(ids = []):
   if debug_mode == 1 and download_async == 1:
     pprint.pprint(in_progress.keys())
 
   if not ids:
+    print "Retrieving subscription feed"
     ids = get_video_feed()
 
   downloaded = [line.strip() for line in open(dldb)]
@@ -172,6 +177,7 @@ def check_and_download_subscriptions(ids = False):
       if video_id not in downloaded:
         print "Retrieving video info..."
         chosen_v, chosen_a, filename, ext, username = get_video_info(video_id)
+        print u"Downloading '{}.{}'".format(filename, ext)
 
         if chosen_v == 1006:
           return
@@ -194,8 +200,11 @@ def check_and_download_subscriptions(ids = False):
       for key in tbr:
         del in_progress[key]
 
-      time.sleep(5)
-      return 1006
+  if download_async == 1:
+    time.sleep(5)
+    return ids
+  else:
+    return []
 
 def parse_id(url):
   return url[url.rfind('=') + 1:]
@@ -276,7 +285,7 @@ def download_video(v_url, a_url, filename, ext, username = ""):
     path = u"./{}".format(filename)
 
   if len(a_url) > 0:
-    print u"Downloading '{}'".format(filename + '.mp4')
+    #print u"Downloading '{}'".format(filename + '.mp4')
     if not os.path.exists(path + '.m4v'):
       file(path + '.m4v', 'w').close()
 
@@ -311,7 +320,7 @@ def download_video(v_url, a_url, filename, ext, username = ""):
     os.remove(path + '.m4v')
     os.remove(path + '.m4a')
   else:
-    print u"Downloading '{}.{}'".format(filename, ext)
+    #print u"Downloading '{}.{}'".format(filename, ext)
     if not os.path.exists(path + '.' + ext):
       file(path + '.' + ext, 'w').close()
 
@@ -323,13 +332,11 @@ def download_video(v_url, a_url, filename, ext, username = ""):
       break
 
 def login():
-  print "Logging in to YouTube"
   yt_service.email = user_email
   yt_service.password = user_password
   yt_service.ProgrammaticLogin()
 
 def get_video_feed():
-  print "Retrieving subscription feed"
   ids = []
 
   while(True):

@@ -248,7 +248,7 @@ def download_video(v_url, a_url, filename, ext, username = ""):
     if not os.path.exists(username):
       os.makedirs(username)
 
-    filename = "./{}/{}".format(username, filename)
+    filename = u"./{}/{}".format(username, filename)
 
   if len(a_url) > 0:
     print u"Downloading '{}'".format(filename + '.mp4')

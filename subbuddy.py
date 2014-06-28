@@ -6,6 +6,7 @@ import glob
 import time
 import json
 import codecs
+import pprint
 import urllib
 import argparse
 import sbconfig
@@ -169,20 +170,22 @@ def check_and_download_subscriptions(ids = False):
 
         if download_async == 0:
           download_video(chosen_v, chosen_a, filename, ext, username)
+          f = open(dldb, 'a')
+          f.write(video_id + '\n')
+          f.close()
         else:
           in_progress[video_id] = threading.Thread(target=download_video,
             args=(chosen_v, chosen_a, filename, ext, username))
 
           in_progress[video_id].start()
-
-        f = open(dldb, 'a')
-        f.write(video_id + '\n')
-        f.close()
     else:
       tbr = []
       for k, v in in_progress.iteritems():
         if not v.is_alive():
           tbr.append(k)
+          f = open(dldb, 'a')
+          f.write(k + '\n')
+          f.close()
 
       for key in tbr:
         del in_progress[key]

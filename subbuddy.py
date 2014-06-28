@@ -63,6 +63,7 @@ def main():
   if args.download_this:
     print "Single video mode."
     chosen_v, chosen_a, filename, ext, username = get_video_info(parse_id(args.download_this), args.dont_login)
+    print u"Downloading '{}.{}'".format(filename, ext)
     download_video(chosen_v, chosen_a, filename, ext, username)
 
   if args.pull_subscriptions:
@@ -195,9 +196,8 @@ def check_and_download_subscriptions(ids = []):
 
           if video_id in download_queue:
             download_queue.remove(video_id)
-    else:
-      if video_id not in download_queue:
-        download_queue.append(video_id)
+    elif video_id not in download_queue and video_id not in downloaded:
+      download_queue.append(video_id)
 
   finished = []
   for k, v in in_progress.iteritems():

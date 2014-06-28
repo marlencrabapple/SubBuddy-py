@@ -35,6 +35,7 @@ new_subscription_videos_uri = 'https://gdata.youtube.com/feeds/api/users/default
 dldb = 'downloaded'
 subdb = 'localsubs'
 
+download_queue = []
 in_progress = dict()
 
 def main():
@@ -80,18 +81,15 @@ def main():
     print 'Goodbye.'
     sys.exit(0)
 
-  # main loop
-  ids = []
-
   while True:
     check_files()
-    ids = check_and_download_subscriptions(ids)
+    check_and_download_subscriptions(download_queue)
 
     if args.run_once:
       print 'Goodbye.'
       sys.exit(0)
 
-    if not ids:
+    if not download_queue:
       print 'Waiting', refresh_rate, 'seconds...'
       time.sleep(refresh_rate)
 
@@ -164,7 +162,10 @@ def skip_current_queue():
 
 def check_and_download_subscriptions(ids = []):
   if debug_mode == 1 and download_async == 1:
+    print("in_progress:")
     pprint.pprint(in_progress.keys())
+    print("download_queue:")
+    pprint.pprint(download_queue)
 
   if not ids:
     print "Retrieving subscription feed"
@@ -173,14 +174,15 @@ def check_and_download_subscriptions(ids = []):
   downloaded = [line.strip() for line in open(dldb)]
 
   for video_id in ids:
-    if (video_id not in in_progress.keys() and len(in_progress) < max_simultaneous_dls) or download_async == 0:
+    if (video_id not in in_progress.keys() and len(in_progress) != max_simultaneous_dls) or download_async == 0:
       if video_id not in downloaded:
         print "Retrieving video info..."
         chosen_v, chosen_a, filename, ext, username = get_video_info(video_id)
-        print u"Downloading '{}.{}'".format(filename, ext)
 
         if chosen_v == 1006:
-          return
+          continue
+        else:
+          print u"Downloading '{}.{}'".format(filename, ext)
 
         if download_async == 0:
           download_video(chosen_v, chosen_a, filename, ext, username)
@@ -190,7 +192,13 @@ def check_and_download_subscriptions(ids = []):
             args=(chosen_v, chosen_a, filename, ext, username))
 
           in_progress[video_id].start()
+
+          if video_id in download_queue:
+            download_queue.remove(video_id)
     else:
+      if video_id not in download_queue:
+        download_queue.append(video_id)
+        
       tbr = []
       for k, v in in_progress.iteritems():
         if not v.is_alive():
@@ -202,7 +210,7 @@ def check_and_download_subscriptions(ids = []):
 
   if download_async == 1:
     time.sleep(5)
-    return ids
+    return download_queue
   else:
     return []
 
@@ -285,7 +293,6 @@ def download_video(v_url, a_url, filename, ext, username = ""):
     path = u"./{}".format(filename)
 
   if len(a_url) > 0:
-    #print u"Downloading '{}'".format(filename + '.mp4')
     if not os.path.exists(path + '.m4v'):
       file(path + '.m4v', 'w').close()
 
@@ -320,7 +327,6 @@ def download_video(v_url, a_url, filename, ext, username = ""):
     os.remove(path + '.m4v')
     os.remove(path + '.m4a')
   else:
-    #print u"Downloading '{}.{}'".format(filename, ext)
     if not os.path.exists(path + '.' + ext):
       file(path + '.' + ext, 'w').close()
 

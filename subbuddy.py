@@ -198,15 +198,17 @@ def check_and_download_subscriptions(ids = []):
     else:
       if video_id not in download_queue:
         download_queue.append(video_id)
-        
-      tbr = []
-      for k, v in in_progress.iteritems():
-        if not v.is_alive():
-          tbr.append(k)
-          log_download(k)
 
-      for key in tbr:
-        del in_progress[key]
+  finished = []
+  for k, v in in_progress.iteritems():
+    if not v.is_alive():
+      finished.append(k)
+      log_download(k)
+
+  for key in finished:
+    del in_progress[key]
+    if key in download_queue:
+      download_queue.remove(key)
 
   if download_async == 1:
     time.sleep(5)

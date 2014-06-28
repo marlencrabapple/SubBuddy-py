@@ -179,9 +179,13 @@ def check_and_download_subscriptions(ids = False):
         f.write(video_id + '\n')
         f.close()
     else:
+      tbr = []
       for k, v in in_progress.iteritems():
         if not v.is_alive():
-          del in_progress[k]
+          tbr.append(k)
+
+      for key in tbr:
+        del in_progress[key]
 
       time.sleep(5)
       check_and_download_subscriptions(ids)

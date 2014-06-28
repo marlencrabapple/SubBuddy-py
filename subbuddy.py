@@ -10,6 +10,7 @@ import urllib
 import argparse
 import sbconfig
 import httplib2
+import threading
 import subprocess
 import gdata.youtube
 import gdata.youtube.service
@@ -18,6 +19,7 @@ user_email = sbconfig.user_email
 user_password = sbconfig.user_password
 dev_key = sbconfig.dev_key
 refresh_rate = sbconfig.refresh_rate
+download_async = sbconfig.download_async
 max_simultaneous_dls = sbconfig.max_simultaneous_dls
 queue_size = sbconfig.queue_size
 download_dash = sbconfig.download_dash
@@ -31,7 +33,7 @@ new_subscription_videos_uri = 'https://gdata.youtube.com/feeds/api/users/default
 dldb = 'downloaded'
 subdb = 'localsubs'
 
-in_progress = []
+in_progress = dict()
 
 def main():
   parser = argparse.ArgumentParser(description='YouTube subscription auto downloader command line options.')
@@ -56,7 +58,7 @@ def main():
 
   if args.download_this:
     print "Single video mode."
-    chosen_v, chosen_a, filename, ext, username = get_video_info(parse_id(args.download_this))
+    chosen_v, chosen_a, filename, ext, username = get_video_info(parse_id(args.download_this), args.dont_login)
     download_video(chosen_v, chosen_a, filename, ext, username)
 
   if args.pull_subscriptions:
@@ -83,7 +85,7 @@ def main():
       print 'Goodbye.'
       sys.exit(0)
 
-    print 'Waiting', refresh_rate, 'seconds...';
+    print 'Waiting', refresh_rate, 'seconds...'
     time.sleep(refresh_rate)
 
 def check_files():
@@ -150,14 +152,14 @@ def skip_current_queue():
       f.write(video_id + '\n')
       f.close()
 
-def check_and_download_subscriptions():
-  ids = get_video_feed()
+def check_and_download_subscriptions(ids = False):
+  if not ids:
+    ids = get_video_feed()
+
   downloaded = [line.strip() for line in open(dldb)]
 
   for video_id in ids:
-    # tbd : async downloads
-    #if video_id not in in_progress and len(in_progress) < max_simultaneous_dls:
-    if video_id not in in_progress:
+    if (video_id not in in_progress.keys() and len(in_progress) < max_simultaneous_dls) or download_async == 0:
       if video_id not in downloaded:
         print "Retrieving video info..."
         chosen_v, chosen_a, filename, ext, username = get_video_info(video_id)
@@ -165,17 +167,29 @@ def check_and_download_subscriptions():
         if chosen_v == 1006:
           return
 
-        download_video(chosen_v, chosen_a, filename, ext, username)
+        if download_async == 0:
+          download_video(chosen_v, chosen_a, filename, ext, username)
+        else:
+          in_progress[video_id] = threading.Thread(target=download_video,
+            args=(chosen_v, chosen_a, filename, ext, username))
 
-        f = open(dldb,'a')
+          in_progress[video_id].start()
+
+        f = open(dldb, 'a')
         f.write(video_id + '\n')
         f.close()
-        in_progress.remove(video_id)
+    else:
+      for k, v in in_progress.iteritems():
+        if not v.is_alive():
+          del in_progress[k]
+
+      time.sleep(5)
+      check_and_download_subscriptions(ids)
 
 def parse_id(url):
   return url[url.rfind('=') + 1:]
 
-def get_video_info(video_id):
+def get_video_info(video_id, login = True):
   d_v = ['264','137','136','135','133']
   d_a = ['141','140','139']
   v = ['22','18','5']
@@ -184,10 +198,14 @@ def get_video_info(video_id):
   chosen_a = ''
   ext = ''
   needs_a = 0
-  in_progress.append(video_id)
-  ytdl = subprocess.Popen(['youtube-dl', '-j', '--username', user_email,
-    '--password', user_password, "https://www.youtube.com/watch?v={}"
-    .format(video_id)], stdout=subprocess.PIPE)
+
+  if login:
+    ytdl = subprocess.Popen(['youtube-dl', '-j', '--username', user_email,
+      '--password', user_password, "https://www.youtube.com/watch?v={}"
+      .format(video_id)], stdout=subprocess.PIPE)
+  else:
+    ytdl = subprocess.Popen(['youtube-dl', "https://www.youtube.com/watch?v={}"
+      .format(video_id)], stdout=subprocess.PIPE)
 
   out, err = ytdl.communicate()
 
@@ -196,6 +214,7 @@ def get_video_info(video_id):
     try:
       video_info = json.loads(out)
     except:
+      time.sleep(5)
       i += 1
       if i == 5:
         return 1006, 0, 0, 0 # skip video
@@ -228,13 +247,6 @@ def get_video_info(video_id):
           chosen_a = available['url']
           break
 
-  #if username_folders == 1:
-  #  filename = u".\/{}\/{} - {} - {}".format(video_info['uploader'],
-  #	  video_info['uploader'], video_info['title'], video_info['id'])
-  #else:
-  #  filename = u"{} - {} - {}".format(video_info['uploader'], video_info['title'],
-  #	  video_info['id'])
-
   filename = u"{} - {} - {}".format(video_info['uploader'], video_info['title'],
     video_info['id'])
 
@@ -248,37 +260,56 @@ def download_video(v_url, a_url, filename, ext, username = ""):
     if not os.path.exists(username):
       os.makedirs(username)
 
-    filename = u"./{}/{}".format(username, filename)
+    path = u"./{}/{}".format(username, filename)
+  else:
+    path = u"./{}".format(filename)
 
   if len(a_url) > 0:
     print u"Downloading '{}'".format(filename + '.mp4')
-    if not os.path.exists(filename + '.m4v'):
-      file(filename + '.m4v', 'w').close()
-    urllib.urlretrieve(v_url, filename + '.m4v')
+    if not os.path.exists(path + '.m4v'):
+      file(path + '.m4v', 'w').close()
 
-    if not os.path.exists(filename + '.m4a'):
-      file(filename + '.m4a', 'w').close()
-    urllib.urlretrieve (a_url, filename + '.m4a')
+    while(True):
+      try:
+        urllib.urlretrieve(v_url, path + '.m4v')
+      except:
+        time.sleep(5)
+      break
+
+    if not os.path.exists(path + '.m4a'):
+      file(path + '.m4a', 'w').close()
+
+    while(True):
+      try:
+        urllib.urlretrieve (a_url, path + '.m4a')
+      except:
+        time.sleep(5)
+      break
 
     if use_custom_ffmpeg == 1:
       ffmpegarg = os.path.abspath('ffmpeg')
     else:
       ffmpegarg = 'ffmpeg'
 
-    ffmpeg = subprocess.Popen([ffmpegarg, '-loglevel', 'quiet', '-i', filename +
-      '.m4v' , '-i', filename + '.m4a', '-vcodec', 'copy', '-acodec', 'copy',
-      filename + '.mp4'], stdout=subprocess.PIPE)
+    ffmpeg = subprocess.Popen([ffmpegarg, '-loglevel', 'quiet', '-i', path +
+      '.m4v' , '-i', path + '.m4a', '-vcodec', 'copy', '-acodec', 'copy',
+      path + '.mp4'], stdout=subprocess.PIPE)
 
     out, err = ffmpeg.communicate()
 
-    os.remove(filename + '.m4v');
-    os.remove(filename + '.m4a');
+    os.remove(path + '.m4v')
+    os.remove(path + '.m4a')
   else:
     print u"Downloading '{}.{}'".format(filename, ext)
-    if not os.path.exists(filename + '.' + ext):
-      file(filename + '.' + ext, 'w').close()
+    if not os.path.exists(path + '.' + ext):
+      file(path + '.' + ext, 'w').close()
 
-    urllib.urlretrieve(v_url, filename + '.' + ext)
+    while(True):
+      try:
+        urllib.urlretrieve(v_url, path + '.' + ext)
+      except:
+        time.sleep(5)
+      break
 
 def login():
   print "Logging in to YouTube"
@@ -294,7 +325,7 @@ def get_video_feed():
     try:
       feed = yt_service.GetYouTubeVideoFeed(new_subscription_videos_uri)
     except gdata.service.RequestError:
-      time.sleep(5);
+      time.sleep(5)
       # tbd: check if 403 and bother user
 
     break

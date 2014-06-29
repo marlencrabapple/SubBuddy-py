@@ -246,11 +246,10 @@ def get_video_info(video_id, login = True):
   needs_a = False
 
   if login:
-    ytdl_args.append(['-j', '--username', user_email, '--password', user_password])
+    ytdl_args.extend(['-j', '--username', user_email, '--password', user_password])
 
-  ytdl = subprocess.Popen(ytdl_args.append("https://www.youtube.com/watch?v={}"
-    .format(video_id)), stdout=subprocess.PIPE)
-
+  ytdl_args.append("https://www.youtube.com/watch?v={}".format(video_id))
+  ytdl = subprocess.Popen(ytdl_args, stdout=subprocess.PIPE)
   out, err = ytdl.communicate()
   video_info = json.loads(out)
 

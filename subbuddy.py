@@ -235,6 +235,7 @@ def parse_id(url):
   return url[url.rfind('=') + 1:]
 
 def get_video_info(video_id, login = True):
+  ytdl_args = ['youtube-dl']
   d_v = ['264','137','136','135','133']
   d_a = ['141','140','139']
   v = ['22','18','5']
@@ -242,15 +243,13 @@ def get_video_info(video_id, login = True):
   chosen_v = ''
   chosen_a = ''
   ext = ''
-  needs_a = 0
+  needs_a = False
 
   if login:
-    ytdl = subprocess.Popen(['youtube-dl', '-j', '--username', user_email,
-      '--password', user_password, "https://www.youtube.com/watch?v={}"
-      .format(video_id)], stdout=subprocess.PIPE)
-  else:
-    ytdl = subprocess.Popen(['youtube-dl', "https://www.youtube.com/watch?v={}"
-      .format(video_id)], stdout=subprocess.PIPE)
+    ytdl_args.append(['-j', '--username', user_email, '--password', user_password])
+
+  ytdl = subprocess.Popen(ytdl_args.append("https://www.youtube.com/watch?v={}"
+    .format(video_id)), stdout=subprocess.PIPE)
 
   out, err = ytdl.communicate()
   video_info = json.loads(out)
@@ -262,7 +261,7 @@ def get_video_info(video_id, login = True):
       if available['format_id'] == preferred:
         if preferred in d_v:
           if download_dash == 1:
-            needs_a = 1
+            needs_a = True
             chosen_v = available['url']
             ext = available['ext']
           else:
@@ -272,7 +271,7 @@ def get_video_info(video_id, login = True):
           ext = available['ext']
         break
 
-  if needs_a == 1:
+  if needs_a:
     for preferred in d_a:
       if len(chosen_a) > 0:
         break

@@ -85,6 +85,8 @@ def main():
   while True:
     check_files()
     check_and_download_subscriptions(download_queue)
+    tw = threading.Thread(target=progress_monitor, args=([False]))
+    tw.start()
 
     if args.run_once:
       print 'Goodbye.'
@@ -93,6 +95,24 @@ def main():
     if not download_queue:
       print 'Waiting', refresh_rate, 'seconds...'
       time.sleep(refresh_rate)
+
+def progress_monitor(run_once = True):
+  while(True):
+    finished = []
+    for k, v in in_progress.iteritems():
+      if not v.is_alive():
+        finished.append(k)
+        log_download(k)
+
+    for key in finished:
+      del in_progress[key]
+      if key in download_queue:
+        download_queue.remove(key)
+
+    if run_once:
+      break
+
+    time.sleep(5)
 
 def check_files():
   if not os.path.exists(dldb):
@@ -199,16 +219,7 @@ def check_and_download_subscriptions(ids = []):
     elif video_id not in download_queue and video_id not in downloaded:
       download_queue.append(video_id)
 
-  finished = []
-  for k, v in in_progress.iteritems():
-    if not v.is_alive():
-      finished.append(k)
-      log_download(k)
-
-  for key in finished:
-    del in_progress[key]
-    if key in download_queue:
-      download_queue.remove(key)
+  progress_monitor()
 
   if download_async == 1:
     time.sleep(5)
@@ -238,18 +249,7 @@ def get_video_info(video_id, login = True):
       .format(video_id)], stdout=subprocess.PIPE)
 
   out, err = ytdl.communicate()
-
-  while(True):
-    i = 0
-    try:
-      video_info = json.loads(out)
-    except:
-      time.sleep(5)
-      i += 1
-      if i == 5:
-        return 1006, 0, 0, 0 # skip video
-
-    break
+  video_info = json.loads(out)
 
   for preferred in ordered_v:
     if len(chosen_v) > 0:
@@ -298,22 +298,12 @@ def download_video(v_url, a_url, filename, ext, username = ""):
     if not os.path.exists(path + '.m4v'):
       file(path + '.m4v', 'w').close()
 
-    while(True):
-      try:
-        urllib.urlretrieve(v_url, path + '.m4v')
-      except:
-        time.sleep(5)
-      break
+    urllib.urlretrieve(v_url, path + '.m4v')
 
     if not os.path.exists(path + '.m4a'):
       file(path + '.m4a', 'w').close()
 
-    while(True):
-      try:
-        urllib.urlretrieve (a_url, path + '.m4a')
-      except:
-        time.sleep(5)
-      break
+    urllib.urlretrieve(a_url, path + '.m4a')
 
     if use_custom_ffmpeg == 1:
       ffmpegarg = os.path.abspath('ffmpeg')
@@ -332,12 +322,7 @@ def download_video(v_url, a_url, filename, ext, username = ""):
     if not os.path.exists(path + '.' + ext):
       file(path + '.' + ext, 'w').close()
 
-    while(True):
-      try:
-        urllib.urlretrieve(v_url, path + '.' + ext)
-      except:
-        time.sleep(5)
-      break
+    urllib.urlretrieve(v_url, path + '.' + ext)
 
 def login():
   yt_service.email = user_email

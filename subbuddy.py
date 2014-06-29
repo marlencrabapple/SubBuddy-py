@@ -86,6 +86,7 @@ def main():
     check_files()
     check_and_download_subscriptions(download_queue)
     tw = threading.Thread(target=progress_monitor, args=([False]))
+    tw.daemon = True
     tw.start()
 
     if args.run_once:
@@ -212,6 +213,7 @@ def check_and_download_subscriptions(ids = []):
           in_progress[video_id] = threading.Thread(target=download_video,
             args=(chosen_v, chosen_a, filename, ext, username))
 
+          in_progress[video_id].daemon = True
           in_progress[video_id].start()
 
           if video_id in download_queue:

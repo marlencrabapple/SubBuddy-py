@@ -62,7 +62,9 @@ def main():
 
   if args.download_this:
     print "Single video mode."
-    chosen_v, chosen_a, filename, ext, username = get_video_info(parse_id(args.download_this), args.dont_login)
+    chosen_v, chosen_a, filename, ext, username = get_video_info(
+      parse_id(args.download_this), args.dont_login)
+
     print u"Downloading '{}.{}'".format(filename, ext)
     download_video(chosen_v, chosen_a, filename, ext, username)
 
@@ -221,7 +223,7 @@ def check_and_download_subscriptions(ids = []):
     elif video_id not in download_queue and video_id not in downloaded:
       download_queue.append(video_id)
 
-  progress_monitor()
+  #progress_monitor()
 
   if download_async == 1:
     time.sleep(5)

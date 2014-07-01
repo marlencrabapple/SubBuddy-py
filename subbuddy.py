@@ -24,6 +24,7 @@ download_async = sbconfig.download_async
 max_simultaneous_dls = sbconfig.max_simultaneous_dls
 queue_size = sbconfig.queue_size
 download_dash = sbconfig.download_dash
+include_nsfw = sbconfig.include_nsfw
 use_custom_ffmpeg = sbconfig.use_custom_ffmpeg
 username_folders = sbconfig.username_folders
 debug_mode = sbconfig.debug_mode
@@ -61,6 +62,12 @@ def main():
     if queue_size <= 50 or queue_size >= 1:
       global new_subscription_videos_uri
       new_subscription_videos_uri += '?max-results=' + str(queue_size)
+
+      if include_nsfw == 1:
+        new_subscription_videos_uri += "&racy=include"
+  else:
+    if include_nsfw == 1:
+      new_subscription_videos_uri += "?racy=include"
 
   if args.download_this:
     print "Single video mode."
@@ -394,7 +401,7 @@ def get_video_feed():
 
   while(True):
     try:
-      feed = yt_service.GetYouTubeVideoFeed(new_subscription_videos_uri + "&racy=include")
+      feed = yt_service.GetYouTubeVideoFeed(new_subscription_videos_uri)
     except gdata.service.RequestError:
       print sys.exc_info()[0]
       time.sleep(5)

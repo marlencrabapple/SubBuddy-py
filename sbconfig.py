@@ -8,6 +8,7 @@ download_async = 1
 max_simultaneous_dls = 3
 queue_size = 25
 download_dash = 0
+download_nsfw = 1
 automatic_overwrite = 1
 use_custom_ffmpeg = 0
 username_folders = 1

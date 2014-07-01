@@ -239,7 +239,9 @@ def check_and_download_subscriptions(ids = []):
       download_queue.append(video_id)
 
   if download_async == 1:
-    time.sleep(5)
+    if download_queue:
+      time.sleep(5)
+      
     return download_queue
   else:
     return []

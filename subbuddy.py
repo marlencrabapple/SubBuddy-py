@@ -87,9 +87,11 @@ def main():
   while True:
     check_files()
     check_and_download_subscriptions(download_queue)
-    tw = threading.Thread(target=progress_monitor, args=([False]))
-    tw.daemon = True
-    tw.start()
+
+    if download_async == 1:
+      tw = threading.Thread(target=progress_monitor, args=([False]))
+      tw.daemon = True
+      tw.start()
 
     if args.run_once:
       print 'Goodbye.'
@@ -103,7 +105,7 @@ def progress_monitor(run_once = True):
   while(True):
     finished = []
     for k, v in in_progress.iteritems():
-      if not v.is_alive():
+      if not v.is_alive() and k not in retry_queue:
         finished.append(k)
         log_download(k)
 
@@ -223,8 +225,6 @@ def check_and_download_subscriptions(ids = []):
     elif video_id not in download_queue and video_id not in downloaded:
       download_queue.append(video_id)
 
-  #progress_monitor()
-
   if download_async == 1:
     time.sleep(5)
     return download_queue
@@ -288,6 +288,8 @@ def get_video_info(video_id, login = True):
   return chosen_v, chosen_a, filename, ext, video_info['uploader']
 
 def download_video(v_url, a_url, filename, ext, username = ""):
+  ffmpeg_args = []
+
   if username_folders == 1:
     if not os.path.exists(username):
       os.makedirs(username)
@@ -308,14 +310,19 @@ def download_video(v_url, a_url, filename, ext, username = ""):
     urllib.urlretrieve(a_url, path + '.m4a')
 
     if use_custom_ffmpeg == 1:
-      ffmpegarg = os.path.abspath('ffmpeg')
+      ffpmeg_args.append(os.path.abspath('ffmpeg'))
     else:
-      ffmpegarg = 'ffmpeg'
+      ffpmeg_args.append('ffmpeg')
 
-    ffmpeg = subprocess.Popen([ffmpegarg, '-loglevel', 'quiet', '-i', path +
-      '.m4v' , '-i', path + '.m4a', '-vcodec', 'copy', '-acodec', 'copy',
-      path + '.mp4'], stdout=subprocess.PIPE)
+    if automatic_overwrite == 1:
+      ffmpeg_args.append('-y')
+    else:
+      ffmpeg_args.append('-n')
 
+    ffmpeg_args.extend(['-loglevel', 'quiet', '-i', path + '.m4v' , '-i', path
+      + '.m4a', '-vcodec', 'copy', '-acodec', 'copy', path + '.mp4'])
+
+    ffmpeg = subprocess.Popen(ffmpeg_args, stdout=subprocess.PIPE)
     out, err = ffmpeg.communicate()
 
     os.remove(path + '.m4v')
@@ -325,6 +332,9 @@ def download_video(v_url, a_url, filename, ext, username = ""):
       file(path + '.' + ext, 'w').close()
 
     urllib.urlretrieve(v_url, path + '.' + ext)
+
+  if not os.path.exists(path + '.mp4'):
+    retry_queue.append(path[(len(path) - 12):])
 
 def login():
   yt_service.email = user_email

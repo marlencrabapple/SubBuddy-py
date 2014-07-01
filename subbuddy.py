@@ -64,11 +64,13 @@ def main():
 
   if args.download_this:
     print "Single video mode."
-    chosen_v, chosen_a, filename, ext, username = get_video_info(
-      parse_id(args.download_this), args.dont_login)
+    video_id = parse_id(args.download_this);
+
+    chosen_v, chosen_a, filename, ext, username = get_video_info(video_id,
+      args.dont_login)
 
     print u"Downloading '{}.{}'".format(filename, ext)
-    download_video(chosen_v, chosen_a, filename, ext, username)
+    download_video(video_id, chosen_v, chosen_a, filename, ext, username)
 
   if args.pull_subscriptions:
     print 'Grabbing remote subscriptions.'
@@ -215,11 +217,11 @@ def check_and_download_subscriptions(ids = []):
           print u"Downloading '{}.{}'".format(filename, ext)
 
         if download_async == 0:
-          download_video(chosen_v, chosen_a, filename, ext, username)
+          download_video(video_id, chosen_v, chosen_a, filename, ext, username)
           log_download(video_id)
         else:
           in_progress[video_id] = threading.Thread(target=download_video,
-            args=(chosen_v, chosen_a, filename, ext, username))
+            args=(video_id, chosen_v, chosen_a, filename, ext, username))
 
           in_progress[video_id].daemon = True
           in_progress[video_id].start()
@@ -291,7 +293,7 @@ def get_video_info(video_id, login = True):
 
   return chosen_v, chosen_a, filename, ext, video_info['uploader']
 
-def download_video(v_url, a_url, filename, ext, username = ""):
+def download_video(video_id, v_url, a_url, filename, ext, username = ""):
   ffmpeg_args = []
 
   if username_folders == 1:
@@ -306,12 +308,38 @@ def download_video(v_url, a_url, filename, ext, username = ""):
     if not os.path.exists(path + '.m4v'):
       file(path + '.m4v', 'w').close()
 
-    urllib.urlretrieve(v_url, path + '.m4v')
+    i = 0
+    while(True):
+      try:
+        urllib.urlretrieve(v_url, path + '.m4v')
+      except:
+        i += 1
+
+        if i < 5:
+          continue
+        else:
+          retry_queue.append(video_id)
+          return
+
+      break
 
     if not os.path.exists(path + '.m4a'):
       file(path + '.m4a', 'w').close()
 
-    urllib.urlretrieve(a_url, path + '.m4a')
+    i = 0
+    while(True):
+      try:
+        urllib.urlretrieve(a_url, path + '.m4a')
+      except:
+        i += 1
+
+        if i < 5:
+          continue
+        else:
+          retry_queue.append(video_id)
+          return
+
+      break
 
     if use_custom_ffmpeg == 1:
       ffmpeg_args.append(os.path.abspath('ffmpeg'))
@@ -335,9 +363,20 @@ def download_video(v_url, a_url, filename, ext, username = ""):
     if not os.path.exists(path + '.' + ext):
       file(path + '.' + ext, 'w').close()
 
-    urllib.urlretrieve(v_url, path + '.' + ext)
+    i = 0
+    while(True):
+      try:
+        urllib.urlretrieve(v_url, path + '.' + ext)
+      except:
+        i += 1
 
-  video_id = path[(len(path) - 12):]
+        if i < 5:
+          continue
+        else:
+          retry_queue.append(video_id)
+          return
+
+      break
 
   if not os.path.exists(path + '.mp4'):
     retry_queue.append(video_id)
@@ -355,14 +394,22 @@ def get_video_feed():
 
   while(True):
     try:
-      feed = yt_service.GetYouTubeVideoFeed(new_subscription_videos_uri)
+      feed = yt_service.GetYouTubeVideoFeed(new_subscription_videos_uri + "&racy=include")
     except gdata.service.RequestError:
+      print sys.exc_info()[0]
       time.sleep(5)
+      continue
       # tbd: check if 403 and bother user
 
     break
 
+  if debug_mode:
+    print("feed.entry:")
+
   for entry in feed.entry:
+    if debug_mode:
+      pprint.pprint(entry.id.text)
+
     gdata_video_url = entry.id.text
     video_id = entry.id.text[gdata_video_url.rfind('/') + 1:]
     ids.append(video_id)

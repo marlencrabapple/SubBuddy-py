@@ -36,6 +36,7 @@ dldb = 'downloaded'
 subdb = 'localsubs'
 
 download_queue = []
+retry_queue = []
 in_progress = dict()
 
 def main():
@@ -192,6 +193,8 @@ def check_and_download_subscriptions(ids = []):
     pprint.pprint(in_progress.keys())
     print("download_queue:")
     pprint.pprint(download_queue)
+    print("retry_queue:")
+    pprint.pprint(retry_queue)
 
   if not ids:
     print "Retrieving subscription feed"
@@ -310,9 +313,9 @@ def download_video(v_url, a_url, filename, ext, username = ""):
     urllib.urlretrieve(a_url, path + '.m4a')
 
     if use_custom_ffmpeg == 1:
-      ffpmeg_args.append(os.path.abspath('ffmpeg'))
+      ffmpeg_args.append(os.path.abspath('ffmpeg'))
     else:
-      ffpmeg_args.append('ffmpeg')
+      ffmpeg_args.append('ffmpeg')
 
     if automatic_overwrite == 1:
       ffmpeg_args.append('-y')
@@ -333,8 +336,13 @@ def download_video(v_url, a_url, filename, ext, username = ""):
 
     urllib.urlretrieve(v_url, path + '.' + ext)
 
+  video_id = path[(len(path) - 12):]
+
   if not os.path.exists(path + '.mp4'):
-    retry_queue.append(path[(len(path) - 12):])
+    retry_queue.append(video_id)
+  elif video_id in retry_queue:
+    retry_queue.remove(video_id)
+
 
 def login():
   yt_service.email = user_email

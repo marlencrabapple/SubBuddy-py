@@ -27,6 +27,7 @@ download_dash = sbconfig.download_dash
 use_custom_ffmpeg = sbconfig.use_custom_ffmpeg
 username_folders = sbconfig.username_folders
 debug_mode = sbconfig.debug_mode
+automatic_overwrite = sbconfig.automatic_overwrite
 
 yt_service = gdata.youtube.service.YouTubeService()
 yt_service.ssl = True

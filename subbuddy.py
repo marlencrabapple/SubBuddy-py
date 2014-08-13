@@ -95,14 +95,14 @@ def main():
     print 'Goodbye.'
     sys.exit(0)
 
+  if download_async == 1:
+    tw = threading.Thread(target=progress_monitor, args=([False]))
+    tw.daemon = True
+    tw.start()
+
   while True:
     check_files()
     check_and_download_subscriptions(download_queue)
-
-    if download_async == 1:
-      tw = threading.Thread(target=progress_monitor, args=([False]))
-      tw.daemon = True
-      tw.start()
 
     if args.run_once:
       print 'Goodbye.'
@@ -241,7 +241,7 @@ def check_and_download_subscriptions(ids = []):
   if download_async == 1:
     if download_queue:
       time.sleep(5)
-      
+
     return download_queue
   else:
     return []
@@ -392,7 +392,6 @@ def download_video(video_id, v_url, a_url, filename, ext, username = ""):
   elif video_id in retry_queue:
     retry_queue.remove(video_id)
 
-
 def login():
   yt_service.email = user_email
   yt_service.password = user_password
@@ -404,15 +403,17 @@ def get_video_feed():
   while(True):
     try:
       feed = yt_service.GetYouTubeVideoFeed(new_subscription_videos_uri)
-    except gdata.service.RequestError:
-      print sys.exc_info()[0]
+    except:
+      if debug_mode == 1:
+        print sys.exc_info()[0]
+
       time.sleep(5)
       continue
       # tbd: check if 403 and bother user
 
     break
 
-  if debug_mode:
+  if debug_mode == 1:
     print("feed.entry:")
 
   for entry in feed.entry:
